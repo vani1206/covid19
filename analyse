@@ -1,0 +1,69 @@
+# Importing the libraries
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.cluster import KMeans
+
+# Loading COVID-19 dataset
+url = "https://covid.ourworldindata.org/data/owid-covid-data.csv"
+data = pd.read_csv(url)
+
+# Selecting the columns  for analysing
+columns = ['date', 'location', 'new_cases', 'total_cases', 'population']
+covid_data = data[columns]
+
+# Convert 'date' column to datetime
+covid_data['date'] = pd.to_datetime(covid_data['date'])
+
+# Handling all the missing values
+covid_data.fillna(0, inplace=True)
+
+# Filtering data for a specific country for time-series analysis
+country = "India"
+country_data = covid_data[covid_data['location'] == country][['date', 'new_cases']]
+
+# Calculate moving average for forecasting
+country_data['moving_avg'] = country_data['new_cases'].rolling(window=7).mean()
+
+# Plot the actual data and moving average
+plt.figure(figsize=(10, 6))
+plt.plot(country_data['date'], country_data['new_cases'], label='Actual New Cases', alpha=0.5)
+plt.plot(country_data['date'], country_data['moving_avg'], label='7-Day Moving Average', color='orange')
+plt.title(f'COVID-19 New Cases and Forecast (Moving Average) for {country}')
+plt.xlabel('Date')
+plt.ylabel('New Cases')
+plt.legend()
+plt.show()
+
+# -------------------------------------------------------------------------
+
+# Step 2: Clustering Analysis
+# Aggregate data by location for clustering
+agg_data = covid_data.groupby('location').max()[['total_cases', 'population']]
+
+# Normalize the data
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler()
+scaled_data = scaler.fit_transform(agg_data)
+
+# Apply KMeans clustering
+kmeans = KMeans(n_clusters=3, random_state=42)
+agg_data['Cluster'] = kmeans.fit_predict(scaled_data)
+
+# Visualize clusters
+plt.figure(figsize=(8, 6))
+sns.scatterplot(data=agg_data, x='population', y='total_cases', hue='Cluster', palette='viridis', s=100)
+plt.title('Clustering of Countries by COVID-19 Impact')
+plt.xlabel('Population (scaled)')
+plt.ylabel('Total Cases (scaled)')
+plt.legend(title='Cluster')
+plt.show()
+
+# -------------------------------------------------------------------------
+
+# Step 3: Save Results
+country_data.to_csv("country_data_with_moving_avg.csv", index=False)
+agg_data.to_csv("clustering_results.csv")
+
+print("Country data with moving average saved to 'country_data_with_moving_avg.csv'")
+print("Cluster results saved to 'clustering_results.csv'")
